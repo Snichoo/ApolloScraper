@@ -5,7 +5,7 @@ from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
 
-# Load config data from environment variables
+# Load config data from environment variables wors!
 config = {
     'email': 'kamexa.test@gmail.com',
     'password': 'Lawlibrary2113!'
