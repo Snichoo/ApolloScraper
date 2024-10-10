@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set the working directory
 WORKDIR /app
 
-# Copy requirements.txt and install Python dependencies
+# Copy and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
