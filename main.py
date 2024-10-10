@@ -7,9 +7,11 @@ app = Flask(__name__)
 
 # Load config data from environment variables
 config = {
-    'email': os.environ.get('APOLLO_EMAIL'),
-    'password': os.environ.get('APOLLO_PASSWORD')
+    'email': 'kamexa.test@gmail.com',
+    'password': 'Lawlibrary2113!'
 }
+
+STORAGE_STATE_PATH = 'apollo_login.json'
 
 def init_browser(playwright_instance):
     print("Starting browser...")
