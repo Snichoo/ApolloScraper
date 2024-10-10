@@ -1,7 +1,8 @@
 import os
 import json
+import asyncio
 from flask import Flask, request, jsonify
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 
 app = Flask(__name__)
 
@@ -11,100 +12,83 @@ config = {
     'password': os.environ.get('APOLLO_PASSWORD')
 }
 
-# Validate environment variables
-if not config['email'] or not config['password']:
-    print("APOLLO_EMAIL and APOLLO_PASSWORD environment variables must be set.")
-    exit(1)
+# Singleton for Playwright instance
+playwright_instance = None
+browser = None
+context = None
+page = None
 
-# Constants
-STORAGE_STATE_PATH = '/tmp/apollo_login.json'  # Add this line
+async def init_browser():
+    global playwright_instance, browser, context, page
+    if not browser:
+        playwright_instance = await async_playwright().start()
+        browser = await playwright_instance.chromium.launch(headless=True)
+        context = await browser.new_context()
+        page = await context.new_page()
 
-def init_browser(playwright_instance):
-    print("Starting browser...")
-    if os.path.exists(STORAGE_STATE_PATH):
-        print("Storage state file found. Using saved session.")
-        browser = playwright_instance.chromium.launch(headless=True, args=["--no-sandbox"])
-        context = browser.new_context(storage_state=STORAGE_STATE_PATH)
-        page = context.new_page()
-    else:
-        print("No storage state file found. Logging in manually.")
-        browser = playwright_instance.chromium.launch(headless=True, args=["--no-sandbox"])
-        context = browser.new_context()
-        page = context.new_page()
-        login_to_site(page)
-        # Save the authenticated state
-        context.storage_state(path=STORAGE_STATE_PATH)
-        print(f"Saved storage state to {STORAGE_STATE_PATH}")
-    return browser, context, page
+        # Ensure we are logged in
+        await login_to_site(page)
 
-def login_to_site(page):
-    print("Starting login process...")
-    page.goto('https://app.apollo.io/#/login')
+async def login_to_site(page):
+    print('Starting login process...')
+    await page.goto('https://app.apollo.io/#/login')
 
     # Wait for the login form to be present
-    print("Waiting for login form to be present...")
-    page.wait_for_selector("input[name='email']")
+    await page.wait_for_selector("input[name='email']")
 
-    print("Filling in email and password...")
-    page.fill("input[name='email']", config['email'])
-    page.fill("input[name='password']", config['password'])
-    print("Submitting login form...")
-    page.click("button[type='submit']")
+    await page.fill("input[name='email']", config['email'])
+    await page.fill("input[name='password']", config['password'])
+    await page.click("button[type='submit']")
 
     # Wait for the URL to change indicating successful login
     print("Waiting for login to complete...")
     try:
-        page.wait_for_url('https://app.apollo.io/#/home', timeout=30000)
+        await page.wait_for_url('https://app.apollo.io/#/home', timeout=30000)
         print("Login successful.")
+    except Exception:
+        print("Login failed: timeout waiting for login to complete.")
+        await page.screenshot(path='login_timeout.png')
+        print("Saved screenshot to 'login_timeout.png'")
+        await browser.close()
+        exit(1)
+
+async def reveal_and_collect_email(page):
+    try:
+        # First, try to find the email directly
+        print("Attempting to find the email directly...")
+        email_element = await page.query_selector("//span[contains(text(), '@')]")
+        if email_element:
+            email = await email_element.text_content()
+            print(f"Collected email directly: {email}")
+            return email
     except Exception as e:
-        print(f"Login failed: {e}")
-        raise Exception("Login failed.")
+        print(f"Error finding email directly: {e}")
 
-def reveal_and_collect_email(page):
-    retry_count = 0
-    max_retries = 1  # Set the maximum retry count to 1
+    try:
+        # If email is not found, look for the 'Access email' button
+        access_email_button = await page.query_selector("//button[.//span[text()='Access email']]")
+        if access_email_button:
+            print("Found 'Access email' button, clicking...")
+            await access_email_button.click()
+            print("Clicked 'Access email' button.")
 
-    while retry_count <= max_retries:
-        try:
-            # Attempt to find the email directly
-            print("Attempting to find the email directly...")
-            email_element = page.query_selector("//span[contains(text(), '@')]")
-            if email_element:
-                email = email_element.text_content()
-                print(f"Collected email directly: {email}")
-                return email
-            else:
-                print("Email not found directly.")
-
-            # Look for the 'Access email' button if email is not found
-            print("Searching for 'Access email' button...")
-            access_email_button = page.query_selector("//button[.//span[text()='Access email']]")
-            if access_email_button:
-                print("Found 'Access email' button, clicking...")
-                access_email_button.click()
-                print("Clicked 'Access email' button.")
-
-                # Wait for the email to become visible
-                print("Waiting for email to be visible...")
-                page.wait_for_selector("//span[contains(text(), '@')]", timeout=30000)
-                email_element = page.query_selector("//span[contains(text(), '@')]")
-                email = email_element.text_content()
-                print(f"Collected email after clicking button: {email}")
-                return email
-            else:
-                print("Neither email nor 'Access email' button found.")
-
-        except Exception as e:
-            print(f"An error occurred while revealing email: {e}")
-
-        # Retry after waiting for 1 second if email was not found
-        retry_count += 1
-        if retry_count <= max_retries:
-            print("Retrying after 1 second...")
-            page.wait_for_timeout(1000)  # Wait for 1 second before retrying
-
-    print("Email not found after retries.")
-    return None
+            # Wait for the email to be visible after clicking the button
+            print("Waiting for email to be visible...")
+            await page.wait_for_selector("//span[contains(text(), '@')]", timeout=30000)
+            email_element = await page.query_selector("//span[contains(text(), '@')]")
+            email = await email_element.text_content()
+            print(f"Collected email after clicking button: {email}")
+            return email
+        else:
+            print("Neither email nor 'Access email' button found.")
+            await page.screenshot(path='email_not_found.png')
+            print("Saved screenshot to 'email_not_found.png'")
+            return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        await page.screenshot(path='reveal_and_collect_email_exception.png')
+        print("Saved screenshot to 'reveal_and_collect_email_exception.png'")
+        return None
 
 @app.route('/get_email', methods=['POST'])
 def get_email():
@@ -114,51 +98,46 @@ def get_email():
     organization_id = data.get('organization_id')
 
     if not (first_name and last_name and organization_id):
-        print("Missing parameters in request.")
         return jsonify({'error': 'Missing parameters'}), 400
 
     # Construct the URL
-    url = (
-        "https://app.apollo.io/#/people?"
-        "sortByField=%5Bnone%5D&sortAscending=false&page=1"
-        f"&qPersonName={first_name}%20{last_name}&organizationIds[]={organization_id}"
-    )
-    print(f"Constructed URL: {url}")
+    url = f"https://app.apollo.io/#/people?sortByField=%5Bnone%5D&sortAscending=false&page=1&qPersonName={first_name}%20{last_name}&organizationIds[]={organization_id}"
 
-    print("Processing request to get email...")
+    async def process_request():
+        await init_browser()
 
-    with sync_playwright() as playwright_instance:
         try:
-            browser, context, page = init_browser(playwright_instance)
-
-            print(f"Navigating to URL: {url}")
-            page.goto(url)
+            # Navigate to the URL
+            await page.goto(url)
             print("Waiting for page to load...")
-            page.wait_for_selector("body")
+            await page.wait_for_selector("body")
             print("Page loaded successfully.")
-            page.wait_for_timeout(1000)  # Wait for 1 second
 
             # Call the function to reveal and collect the email
-            email = reveal_and_collect_email(page)
+            email = await reveal_and_collect_email(page)
 
             if email:
-                print(f"Email found: {email}")
                 return jsonify({'email': email})
             else:
-                print("Email not found.")
                 return jsonify({'error': 'Email not found'}), 404
         except Exception as e:
-            print(f"An error occurred during email retrieval: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"An error occurred: {e}")
             return jsonify({'error': 'Internal server error'}), 500
 
+    return asyncio.run(process_request())
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
-    # No need for shutdown logic since we're not using global instances
-    print("Shutdown endpoint called, but no resources to clean up.")
-    return jsonify({'status': 'Nothing to shut down'}), 200
+    async def close_resources():
+        global browser, playwright_instance
+        if browser:
+            await browser.close()
+            browser = None
+        if playwright_instance:
+            await playwright_instance.stop()
+            playwright_instance = None
+    asyncio.run(close_resources())
+    return jsonify({'status': 'Browser closed'}), 200
 
 if __name__ == "__main__":
     try:
