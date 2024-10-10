@@ -17,9 +17,6 @@ if not config['email'] or not config['password']:
     exit(1)
 
 # Constants
-# Constants
-STORAGE_STATE_PATH = '/tmp/apollo_login.json'
-
 def init_browser(playwright_instance):
     print("Starting browser...")
     if os.path.exists(STORAGE_STATE_PATH):
