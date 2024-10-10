@@ -7,8 +7,8 @@ app = Flask(__name__)
 
 # Load config data from environment variables
 config = {
-    'email': os.environ.get('APOLLO_EMAIL'),    # Set 'APOLLO_EMAIL' in environment variables
-    'password': os.environ.get('APOLLO_PASSWORD')  # Set 'APOLLO_PASSWORD' in environment variables
+    'email': os.environ.get('APOLLO_EMAIL'),
+    'password': os.environ.get('APOLLO_PASSWORD')
 }
 
 # Constants
@@ -168,6 +168,9 @@ def shutdown():
     return jsonify({'status': 'Nothing to shut down'}), 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 4000))
-    print(f"Starting Flask app on port {port}...")
-    app.run(host='0.0.0.0', port=port, threaded=True)  # Listen on all IPv4 addresses
+    try:
+        port = int(os.environ.get('PORT', 8080))
+        print(f"Starting Flask app on port {port}...")
+        app.run(host='0.0.0.0', port=port, threaded=True)
+    except Exception as e:
+        print(f"Failed to start the application: {e}")
