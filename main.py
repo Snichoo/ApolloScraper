@@ -128,8 +128,6 @@ def get_email():
     print("Processing request to get email...")
 
     with sync_playwright() as playwright_instance:
-        browser = None
-        context = None
         try:
             browser, context, page = init_browser(playwright_instance)
 
@@ -151,13 +149,10 @@ def get_email():
                 return jsonify({'error': 'Email not found'}), 404
         except Exception as e:
             print(f"An error occurred during email retrieval: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'error': 'Internal server error'}), 500
-        finally:
-            # Close the browser and context after the request
-            if context:
-                context.close()
-            if browser:
-                browser.close()
+
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
