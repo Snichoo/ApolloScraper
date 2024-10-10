@@ -17,6 +17,7 @@ if not config['email'] or not config['password']:
     exit(1)
 
 # Constants
+# Constants
 STORAGE_STATE_PATH = '/tmp/apollo_login.json'
 
 def init_browser(playwright_instance):
@@ -58,9 +59,6 @@ def login_to_site(page):
         print("Login successful.")
     except Exception as e:
         print(f"Login failed: {e}")
-        screenshot_path = '/tmp/login_failed.png'
-        page.screenshot(path=screenshot_path)
-        print(f"Saved screenshot to '{screenshot_path}'")
         raise Exception("Login failed.")
 
 def reveal_and_collect_email(page):
@@ -96,13 +94,9 @@ def reveal_and_collect_email(page):
                 return email
             else:
                 print("Neither email nor 'Access email' button found.")
-                page.screenshot(path='/tmp/email_not_found.png')
-                print("Saved screenshot to '/tmp/email_not_found.png'")
 
         except Exception as e:
             print(f"An error occurred while revealing email: {e}")
-            page.screenshot(path='/tmp/reveal_and_collect_email_exception.png')
-            print("Saved screenshot to '/tmp/reveal_and_collect_email_exception.png'")
 
         # Retry after waiting for 1 second if email was not found
         retry_count += 1
