@@ -1,0 +1,11 @@
+/.env
+/after_login.png
+/apollo_login.json
+/config.json
+/email_not_found.png
+/login_failed.png
+/login_timeout.png
+/login_timeout_attempt_1.png
+/login_timeout_attempt_2.png
+/login_timeout_attempt_3.png
+/myenv
