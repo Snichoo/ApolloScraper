@@ -11,19 +11,24 @@ config = {
     'password': os.environ.get('APOLLO_PASSWORD')
 }
 
+# Validate environment variables
+if not config['email'] or not config['password']:
+    print("APOLLO_EMAIL and APOLLO_PASSWORD environment variables must be set.")
+    exit(1)
+
 # Constants
-STORAGE_STATE_PATH = 'apollo_login.json'
+STORAGE_STATE_PATH = '/tmp/apollo_login.json'
 
 def init_browser(playwright_instance):
     print("Starting browser...")
     if os.path.exists(STORAGE_STATE_PATH):
         print("Storage state file found. Using saved session.")
-        browser = playwright_instance.chromium.launch(headless=True)
+        browser = playwright_instance.chromium.launch(headless=True, args=["--no-sandbox"])
         context = browser.new_context(storage_state=STORAGE_STATE_PATH)
         page = context.new_page()
     else:
         print("No storage state file found. Logging in manually.")
-        browser = playwright_instance.chromium.launch(headless=True)
+        browser = playwright_instance.chromium.launch(headless=True, args=["--no-sandbox"])
         context = browser.new_context()
         page = context.new_page()
         login_to_site(page)
@@ -53,6 +58,9 @@ def login_to_site(page):
         print("Login successful.")
     except Exception as e:
         print(f"Login failed: {e}")
+        screenshot_path = '/tmp/login_failed.png'
+        page.screenshot(path=screenshot_path)
+        print(f"Saved screenshot to '{screenshot_path}'")
         raise Exception("Login failed.")
 
 def reveal_and_collect_email(page):
@@ -88,9 +96,13 @@ def reveal_and_collect_email(page):
                 return email
             else:
                 print("Neither email nor 'Access email' button found.")
+                page.screenshot(path='/tmp/email_not_found.png')
+                print("Saved screenshot to '/tmp/email_not_found.png'")
 
         except Exception as e:
             print(f"An error occurred while revealing email: {e}")
+            page.screenshot(path='/tmp/reveal_and_collect_email_exception.png')
+            print("Saved screenshot to '/tmp/reveal_and_collect_email_exception.png'")
 
         # Retry after waiting for 1 second if email was not found
         retry_count += 1
@@ -167,3 +179,4 @@ if __name__ == "__main__":
         app.run(host='0.0.0.0', port=port, threaded=True)
     except Exception as e:
         print(f"Failed to start the application: {e}")
+        exit(1)
