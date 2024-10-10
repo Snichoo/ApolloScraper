@@ -53,9 +53,6 @@ def login_to_site(page):
         print("Login successful.")
     except Exception as e:
         print(f"Login failed: {e}")
-        screenshot_path = 'login_failed.png'
-        page.screenshot(path=screenshot_path)
-        print(f"Saved screenshot to '{screenshot_path}'")
         raise Exception("Login failed.")
 
 def reveal_and_collect_email(page):
@@ -91,13 +88,9 @@ def reveal_and_collect_email(page):
                 return email
             else:
                 print("Neither email nor 'Access email' button found.")
-                page.screenshot(path='email_not_found.png')
-                print("Saved screenshot to 'email_not_found.png'")
 
         except Exception as e:
             print(f"An error occurred while revealing email: {e}")
-            page.screenshot(path='reveal_and_collect_email_exception.png')
-            print("Saved screenshot to 'reveal_and_collect_email_exception.png'")
 
         # Retry after waiting for 1 second if email was not found
         retry_count += 1
