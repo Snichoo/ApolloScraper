@@ -5,12 +5,13 @@ from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
 
-# Load config data from environment variables wors!
+# Load config data from environment variables
 config = {
-    'email': 'kamexa.test@gmail.com',
-    'password': 'Lawlibrary2113!'
+    'email': os.environ.get('APOLLO_EMAIL'),    # Set 'APOLLO_EMAIL' in environment variables
+    'password': os.environ.get('APOLLO_PASSWORD')  # Set 'APOLLO_PASSWORD' in environment variables
 }
 
+# Constants
 STORAGE_STATE_PATH = 'apollo_login.json'
 
 def init_browser(playwright_instance):
@@ -75,7 +76,7 @@ def reveal_and_collect_email(page):
             access_email_button = page.query_selector("//button[.//span[text()='Access email']]")
             if access_email_button:
                 print("Found 'Access email' button, clicking...")
-                access_email_button.click()
+                page.evaluate("button => button.click()", access_email_button)
                 print("Clicked 'Access email' button.")
 
                 # Wait for the email to become visible
@@ -160,9 +161,6 @@ def shutdown():
     return jsonify({'status': 'Nothing to shut down'}), 200
 
 if __name__ == "__main__":
-    try:
-        port = int(os.environ.get('PORT', 8080))
-        print(f"Starting Flask app on port {port}...")
-        app.run(host='0.0.0.0', port=port, threaded=True)
-    except Exception as e:
-        print(f"Failed to start the application: {e}")
+    port = int(os.environ.get('PORT', 8080))
+    print(f"Starting Flask app on port {port}...")
+    app.run(host='0.0.0.0', port=port, threaded=True)  # Listen on all IPv4 addresses
