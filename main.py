@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Load config data from environment variables
 config = {
     'email': os.environ.get('APOLLO_EMAIL'),    # Set 'APOLLO_EMAIL' in environment variables
-    'password': os.environ.get('APOLLO_PASSWORD')  # Set 'APOLLO_PASSWORD' in environment variables
+    'password': os.environ.get('APOLLO_PASSWORD')  # Set 'AjdPOLLO_PASSWORD' in environment variables
 }
 
 # Constants
