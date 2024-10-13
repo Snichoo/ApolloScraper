@@ -233,7 +233,7 @@ def get_email():
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
-    # No need for shutdown logic since we're not using global instances
+    # No need for shutdown logic since we're not using global instances.
     print("Shutdown endpoint called, but no resources to clean up.")
     return jsonify({'status': 'Nothing to shut down'}), 200
 
