@@ -8,7 +8,7 @@ app = Flask(__name__)
 # Load config data from environment variables
 config = {
     'email': os.environ.get('APOLLO_EMAIL'),    # Set 'APOLLO_EMAIL' in environment variables
-    'password': os.environ.get('APOLLO_PASSWORD')  # Set 'AjdPOLLO_PASSWORD' in environment variables
+    'password': os.environ.get('APOLLO_PASSWORD')  # Set 'APOLLO_PASSWORD' in environment variables
 }
 
 # Constants
@@ -17,19 +17,26 @@ STORAGE_STATE_PATH = 'apollo_login.json'
 def init_browser(playwright_instance):
     print("Starting browser...")
     browser = playwright_instance.chromium.launch(
-        headless=True
-        # Removed '--disable-blink-features=AutomationControlled' to avoid detection
+        headless=True,
+        args=[
+            '--disable-blink-features=AutomationControlled',
+        ]
     )
     context = browser.new_context(
         user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                    'AppleWebKit/537.36 (KHTML, like Gecko) '
-                   'Chrome/117.0.5938.0 Safari/537.36',  # Updated user agent
+                   'Chrome/94.0.4606.81 Safari/537.36',
         viewport={'width': 1920, 'height': 1080},
         accept_downloads=True,
     )
     page = context.new_page()
 
-    # Removed manipulation of navigator.webdriver to avoid detection
+    # Add script to remove navigator.webdriver property
+    page.add_init_script("""
+    Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+    });
+    """)
 
     if os.path.exists(STORAGE_STATE_PATH):
         print("Storage state file found. Loading session.")
@@ -37,13 +44,18 @@ def init_browser(playwright_instance):
             storage_state=STORAGE_STATE_PATH,
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                        'AppleWebKit/537.36 (KHTML, like Gecko) '
-                       'Chrome/117.0.5938.0 Safari/537.36',
+                       'Chrome/94.0.4606.81 Safari/537.36',
             viewport={'width': 1920, 'height': 1080},
             accept_downloads=True,
         )
         page = context.new_page()
 
-        # Removed manipulation of navigator.webdriver to avoid detection
+        # Add script to remove navigator.webdriver property
+        page.add_init_script("""
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined
+        });
+        """)
 
         # Navigate to a page that requires authentication
         page.goto('https://app.apollo.io/#/home')
@@ -59,12 +71,17 @@ def init_browser(playwright_instance):
             context = browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                            'AppleWebKit/537.36 (KHTML, like Gecko) '
-                           'Chrome/117.0.5938.0 Safari/537.36',
+                           'Chrome/94.0.4606.81 Safari/537.36',
                 viewport={'width': 1920, 'height': 1080},
                 accept_downloads=True,
             )
             page = context.new_page()
-            # Removed manipulation of navigator.webdriver to avoid detection
+            # Add script to remove navigator.webdriver property
+            page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            });
+            """)
             login_to_site(page)
             context.storage_state(path=STORAGE_STATE_PATH)
             print(f"Saved storage state to {STORAGE_STATE_PATH}")
@@ -95,28 +112,25 @@ def login_to_site(page):
     page.wait_for_selector("input[name='email']", timeout=10000)
 
     print("Filling in email and password...")
-    page.type("input[name='email']", config['email'], delay=100)  # Simulate typing
-    page.type("input[name='password']", config['password'], delay=100)
-    page.wait_for_timeout(500)  # Wait for 0.5 second
+    page.fill("input[name='email']", config['email'])
+    page.fill("input[name='password']", config['password'])
     print("Submitting login form...")
     page.click("button[type='submit']")
-    page.wait_for_timeout(1000)  # Wait for 1 second
 
     # Wait for the URL to change from the login URL
     print("Waiting for login to complete...")
     try:
         # Wait until the URL does not contain '#/login'
+        page.wait_for_function("!window.location.href.includes('#/login')", timeout=60000)
         page.wait_for_load_state('networkidle')
-        if is_logged_in(page):
-            print("Login successful.")
-        else:
-            print("Login failed.")
-            raise Exception("Login failed.")
+        print("Login successful.")
     except Exception as e:
         print(f"Login failed: {e}")
         raise Exception("Login failed.")
 
 def reveal_and_collect_email(page):
+    # Your existing code for collecting the email
+    # ...
 
     retry_count = 0
     max_retries = 1  # Set the maximum retry count to 1
